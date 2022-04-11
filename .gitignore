@@ -1,0 +1,9 @@
+# Ignore compiled files
+/target
+
+# Ignore all the settings
+settings.toml
+.env
+
+# Ignore the database
+db.sqlite3
