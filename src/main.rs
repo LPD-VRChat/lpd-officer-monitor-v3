@@ -1,15 +1,24 @@
 mod business;
 mod commands;
 mod config;
+mod db;
 mod global;
+mod models;
+mod schema;
 
 use crate::global::{Context, Data, Error};
 use poise;
 use poise::serenity_prelude as serenity;
 use std::string::String;
 
+use diesel::prelude::*;
+
 #[macro_use]
 extern crate lazy_static;
+
+#[macro_use]
+extern crate diesel;
+extern crate dotenv;
 
 /// Show this menu
 #[poise::command(prefix_command, slash_command, track_edits)]
@@ -45,6 +54,18 @@ async fn event_listener(
 
 #[tokio::main]
 async fn main() {
+    use schema::officers::dsl::*;
+    let connection = db::establish_connection();
+    let results = officers
+        .filter(vrchat_id.eq(""))
+        .limit(5)
+        .load::<models::Officer>(&connection);
+
+    match results {
+        Ok(officers_vec) => println!("Officers: {:?}", officers_vec),
+        Err(why) => println!("Failed to fetch officers: {:?}", why),
+    };
+
     poise::Framework::build()
         .token(&config::CONFIG.token)
         .user_data_setup(move |_ctx, _ready, _framework| Box::pin(async move { Ok(Data {}) }))
