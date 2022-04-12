@@ -5,13 +5,17 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = [".", "entity", "migration"]
+
 [dependencies]
 # serenity = "0.10"
 # poise = "0.0.0"
 serenity = { git = "https://github.com/serenity-rs/serenity" }
 poise = { git = "https://github.com/kangalioo/poise", branch = "develop" }
 
-diesel = { version = "1.4", features = ["mysql"] }
+entity = { path = "entity" }
+migration = { path = "migration" }
 dotenv = "0.15"
 
 tokio = { version = "1.17", features = ["full"] }
