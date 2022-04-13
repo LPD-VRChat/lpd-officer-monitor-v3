@@ -1,5 +1,4 @@
 use entity::officer;
-use sea_query::MySqlQueryBuilder;
 use sea_schema::migration::prelude::*;
 
 pub struct Migration;

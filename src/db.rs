@@ -20,5 +20,5 @@ pub async fn establish_connection() -> DatabaseConnection {
 
     Database::connect(opt)
         .await
-        .expect(&format!("Error connecting to {}", database_url))
+        .unwrap_or_else(|err| panic!("Error connecting to {}: {:?}", database_url, err))
 }

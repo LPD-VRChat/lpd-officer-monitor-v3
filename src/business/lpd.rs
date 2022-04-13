@@ -1,20 +1,13 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-
 use poise::serenity_prelude as serenity;
 
 use crate::config::CONFIG;
 use crate::global::OfficerCache;
 use entity::officer;
 
-pub fn has_lpd_role(roles: &Vec<serenity::RoleId>) -> bool {
+pub fn has_lpd_role(roles: &[serenity::RoleId]) -> bool {
     let found_role = roles.iter().find(|role_id| role_id == &&CONFIG.roles.lpd);
 
-    match found_role {
-        Some(_) => true,
-        None => false,
-    }
+    found_role.is_some()
 }
 
 pub async fn is_in_cache_and<F>(

@@ -20,17 +20,11 @@ pub async fn get_role_by_decorated_name(
     role_name: &str,
 ) -> Option<serenity::Role> {
     // Find the role
-    let role = cache
+    cache
         .guild_roles(CONFIG.guild_id)
         .expect(&CONFIG.guild_error_text)
         .into_values()
-        .find(|x| remove_role_decoration(&x.name) == role_name);
-
-    // Clone the role if it was found
-    match role {
-        Some(res) => Some(res.clone()),
-        None => None,
-    }
+        .find(|x| remove_role_decoration(&x.name) == role_name)
 }
 
 pub async fn get_role_members(
@@ -43,7 +37,7 @@ pub async fn get_role_members(
         // Filter out anyone that isn't in the role or returns an error.
         .filter(|m| {
             let has_role = match m {
-                Ok(member) => member.roles.contains(&role_id),
+                Ok(member) => member.roles.contains(role_id),
                 Err(err) => {
                     println!(
                         "get_role_members: members_iter.filter got an error: {:?}",

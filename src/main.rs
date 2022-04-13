@@ -5,21 +5,19 @@ mod db;
 mod global;
 
 use crate::global::{Context, Data, Error};
-use poise;
 use poise::serenity_prelude as serenity;
 
 use std::boxed::Box;
 use std::collections::HashMap;
-use std::iter::{Map, Zip};
 use std::string::String;
 use std::sync::Arc;
 use std::vec::Vec;
 use tokio::sync::RwLock;
 
-use entity::sea_orm::ColumnTrait;
+// use entity::sea_orm::ColumnTrait;
 use entity::sea_orm::EntityTrait;
 use entity::sea_orm::QueryFilter;
-use tracing_subscriber;
+// use tracing_subscriber;
 
 pub use entity::officer;
 pub use entity::officer::Entity as Officer;
@@ -41,7 +39,7 @@ You can edit your message to the bot and the bot will edit its response.",
     };
     poise::builtins::help(ctx, command.as_deref(), config)
         .await
-        .map_err(|err| Box::from(err))
+        .map_err(Box::from)
 }
 
 async fn event_listener(
@@ -68,7 +66,6 @@ async fn event_listener(
                     vrchat_id: Set("".to_owned()),
                     started_monitoring: Set(chrono::offset::Utc::now().naive_utc()),
                     delete_at: Set(None),
-                    ..Default::default()
                 };
 
                 // Add the user to the database
@@ -134,14 +131,22 @@ async fn event_listener(
 
 #[tokio::main]
 async fn main() {
+    // Fill in the officer cache with all the officers from the database
     let connection = db::establish_connection().await;
     let officer_list = Officer::find()
         .all(&connection)
         .await
         .expect("Couldn't fetch the officers from the database.");
-    let officer_ids = officer_list.iter().map(|m| m.id).collect::<Vec<_>>();
-    let officer_data = HashMap::from_iter(officer_ids.into_iter().zip(officer_list));
+    let officer_data = HashMap::from_iter(
+        officer_list
+            .iter()
+            .map(|m| m.id)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .zip(officer_list),
+    );
     let officer_cache = Arc::new(RwLock::new(officer_data));
+
     let ctx_data = Data {
         officer_cache: officer_cache.clone(),
     };
