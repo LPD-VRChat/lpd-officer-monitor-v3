@@ -23,7 +23,7 @@ impl MigrationTrait for Migration {
         manager.alter_table(
             Table::alter()
                 .table(officer::Entity)
-                .add_column(ColumnDef::new(officer::Column::DeleteAt).date_time().default(0))
+                .add_column(ColumnDef::new(officer::Column::DeletedAt).date_time().default(0))
                 .to_owned()
         ).await?;
 
@@ -41,7 +41,7 @@ impl MigrationTrait for Migration {
         manager.alter_table(
             Table::alter()
                 .table(officer::Entity)
-                .drop_column(officer::Column::DeleteAt)
+                .drop_column(officer::Column::DeletedAt)
                 .to_owned()
         ).await?;
 

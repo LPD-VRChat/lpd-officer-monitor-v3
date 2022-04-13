@@ -32,5 +32,5 @@ pub async fn is_in_cache(officer_cache: &OfficerCache, user_id: &serenity::UserI
 }
 
 pub async fn is_lpd_in_cache(officer_cache: &OfficerCache, user_id: &serenity::UserId) -> bool {
-    is_in_cache_and(officer_cache, user_id, |model| model.delete_at == None).await
+    is_in_cache_and(officer_cache, user_id, |model| model.deleted_at == None).await
 }

@@ -65,7 +65,7 @@ async fn event_listener(
                     vrchat_name: Set("".to_owned()),
                     vrchat_id: Set("".to_owned()),
                     started_monitoring: Set(chrono::offset::Utc::now().naive_utc()),
-                    delete_at: Set(None),
+                    deleted_at: Set(None),
                 };
 
                 // Add the user to the database
@@ -104,13 +104,13 @@ async fn event_listener(
                 );
 
                 // Update in the cache
-                selected_officer.delete_at = Some(deleted_at_date);
+                selected_officer.deleted_at = Some(deleted_at_date);
 
                 // Create the update model
                 use entity::sea_orm::entity::*;
                 let active_model = officer::ActiveModel {
                     id: Set(data.user.id.0),
-                    delete_at: Set(Some(deleted_at_date)),
+                    deleted_at: Set(Some(deleted_at_date)),
                     ..Default::default()
                 };
 
