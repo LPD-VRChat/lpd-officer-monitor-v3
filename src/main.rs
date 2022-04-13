@@ -55,28 +55,75 @@ async fn event_listener(
             println!("{} is connected!", data_about_bot.ready.user.name);
         }
         serenity::Event::GuildMemberUpdate(data) => {
-            let is_in_bot = business::is_in_bot(&user_data.officer_cache, &data.user.id).await;
-            if !is_in_bot && business::has_lpd_role(&data.roles) {
-                let mut officer_cache_lock = user_data.officer_cache.write().await;
-                let officer_cache = &mut *officer_cache_lock;
+            let is_in_bot_cache =
+                business::is_lpd_in_cache(&user_data.officer_cache, &data.user.id).await;
 
-                // Add the new member to the database
-                let model = officer::Model {
-                    id: data.user.id.0,
-                    vrchat_name: "".to_owned(),
-                    vrchat_id: "".to_owned(),
-                    started_monitoring: chrono::offset::Utc::now().naive_utc(),
-                    delete_at: None,
+            // Add the user to the database if they just got an LPD role
+            if !is_in_bot_cache && business::has_lpd_role(&data.roles) {
+                // Create the new model
+                use entity::sea_orm::entity::*;
+                let active_model = officer::ActiveModel {
+                    id: Set(data.user.id.0),
+                    vrchat_name: Set("".to_owned()),
+                    vrchat_id: Set("".to_owned()),
+                    started_monitoring: Set(chrono::offset::Utc::now().naive_utc()),
+                    delete_at: Set(None),
+                    ..Default::default()
                 };
-                let active_model = officer::ActiveModel::from(model.clone());
-                // println!("Active model: {:?}", active_model);
 
+                // Add the user to the database
                 let connection = db::establish_connection().await;
-                Officer::insert(active_model).exec(&connection).await?;
+                let in_cache = business::is_in_cache(&user_data.officer_cache, &data.user.id).await;
+                let model = match in_cache {
+                    true => {
+                        Officer::update(active_model)
+                            .filter(officer::Column::Id.eq(data.user.id.0))
+                            .exec(&connection)
+                            .await?
+                    }
+                    false => {
+                        Officer::insert(active_model).exec(&connection).await?;
+                        Officer::find_by_id(data.user.id.0)
+                            .one(&connection)
+                            .await?
+                            .expect("Officer not in database after they were added.")
+                    }
+                };
 
                 // Add the new member to the cache
+                let mut officer_cache_lock = user_data.officer_cache.write().await;
+                let officer_cache = &mut *officer_cache_lock;
                 officer_cache.insert(data.user.id.0, model);
             }
+            // Remove an officer if they no longer have the LPD roles
+            else if is_in_bot_cache && !business::has_lpd_role(&data.roles) {
+                let deleted_at_date = chrono::Utc::now().naive_utc();
+
+                // Get the officer selected from the cache
+                let mut officer_cache_lock = user_data.officer_cache.write().await;
+                let officer_cache = &mut *officer_cache_lock;
+                let selected_officer = officer_cache.get_mut(&data.user.id.0).expect(
+                    "Officer removed from the cache between read and removal on member update.",
+                );
+
+                // Update in the cache
+                selected_officer.delete_at = Some(deleted_at_date);
+
+                // Create the update model
+                use entity::sea_orm::entity::*;
+                let active_model = officer::ActiveModel {
+                    id: Set(data.user.id.0),
+                    delete_at: Set(Some(deleted_at_date)),
+                    ..Default::default()
+                };
+
+                // Update in the database
+                let connection = db::establish_connection().await;
+                Officer::update(active_model)
+                    .filter(officer::Column::Id.eq(data.user.id.0))
+                    .exec(&connection)
+                    .await?;
+            };
         }
         // serenity::Event::GuildMemberRemove(data) => data.member.user.id,
         _ => {}
