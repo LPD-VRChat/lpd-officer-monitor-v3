@@ -1,3 +1,4 @@
+use poise::serenity_prelude as serenity;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
@@ -8,10 +9,16 @@ lazy_static! {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct RoleConfig {
+    pub lpd: serenity::RoleId,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub token: String,
     pub guild_id: u64,
     pub guild_error_text: String,
+    pub roles: RoleConfig,
 }
 
 pub fn get_config(file: &str) -> Config {

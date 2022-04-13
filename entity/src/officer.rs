@@ -7,6 +7,8 @@ pub struct Model {
     pub id: u64,
     pub vrchat_name: String,
     pub vrchat_id: String,
+    pub started_monitoring: DateTime,
+    pub delete_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

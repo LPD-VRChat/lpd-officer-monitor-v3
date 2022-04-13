@@ -1213,6 +1213,7 @@ dependencies = [
 name = "lpd-officer-monitor"
 version = "3.0.0"
 dependencies = [
+ "chrono",
  "dotenv",
  "entity",
  "lazy_static",
@@ -1222,6 +1223,8 @@ dependencies = [
  "serenity 0.10.10 (git+https://github.com/serenity-rs/serenity)",
  "tokio",
  "toml",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
