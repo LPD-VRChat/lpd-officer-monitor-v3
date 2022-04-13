@@ -137,14 +137,7 @@ async fn main() {
         .all(&connection)
         .await
         .expect("Couldn't fetch the officers from the database.");
-    let officer_data = HashMap::from_iter(
-        officer_list
-            .iter()
-            .map(|m| m.id)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .zip(officer_list),
-    );
+    let officer_data: HashMap<_, _> = officer_list.into_iter().map(|m| (m.id, m)).collect();
     let officer_cache = Arc::new(RwLock::new(officer_data));
 
     let ctx_data = Data {
