@@ -5,6 +5,7 @@ use tokio::sync::RwLock;
 use poise::serenity_prelude as serenity;
 
 use crate::config::CONFIG;
+use crate::global::OfficerCache;
 use entity::officer;
 
 pub fn has_lpd_role(roles: &Vec<serenity::RoleId>) -> bool {
@@ -17,7 +18,7 @@ pub fn has_lpd_role(roles: &Vec<serenity::RoleId>) -> bool {
 }
 
 pub async fn is_in_cache_and<F>(
-    officer_cache: &Arc<RwLock<HashMap<u64, officer::Model>>>,
+    officer_cache: &OfficerCache,
     user_id: &serenity::UserId,
     and_fn: F,
 ) -> bool
@@ -33,16 +34,10 @@ where
     }
 }
 
-pub async fn is_in_cache(
-    officer_cache: &Arc<RwLock<HashMap<u64, officer::Model>>>,
-    user_id: &serenity::UserId,
-) -> bool {
+pub async fn is_in_cache(officer_cache: &OfficerCache, user_id: &serenity::UserId) -> bool {
     is_in_cache_and(officer_cache, user_id, |_m| true).await
 }
 
-pub async fn is_lpd_in_cache(
-    officer_cache: &Arc<RwLock<HashMap<u64, officer::Model>>>,
-    user_id: &serenity::UserId,
-) -> bool {
+pub async fn is_lpd_in_cache(officer_cache: &OfficerCache, user_id: &serenity::UserId) -> bool {
     is_in_cache_and(officer_cache, user_id, |model| model.delete_at == None).await
 }
