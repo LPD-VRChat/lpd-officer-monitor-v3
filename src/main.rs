@@ -43,54 +43,17 @@ You can edit your message to the bot and the bot will edit its response.",
 }
 
 async fn event_listener(
-    _ctx: &serenity::Context,
+    ctx: &serenity::Context,
     event: &serenity::Event,
-    _framework: &poise::Framework<Data, Error>,
+    framework: &poise::Framework<Data, Error>,
     user_data: &Data,
 ) -> Result<(), Error> {
+    business::member_management::event_listener(ctx, event, framework, user_data).await?;
+    business::patrol_measure::event_listener(ctx, event, framework, user_data).await?;
+
     match event {
         serenity::Event::Ready(data_about_bot) => {
             println!("{} is connected!", data_about_bot.ready.user.name);
-        }
-        serenity::Event::GuildMemberUpdate(data) => {
-            let member =
-                business::get_member_from_cache(&user_data.officer_cache, &data.user.id).await;
-            let in_cache_and_lpd = match member {
-                Some(ref m) => m.deleted_at.is_none(),
-                None => false,
-            };
-
-            // Add the user to the database if they just got an LPD role but aren't in the cache yet
-            // TODO: Change add_member and remove_member into transactions to allow for better error
-            // handling mid way through.
-            if !in_cache_and_lpd && business::has_lpd_role(&data.roles) {
-                business::add_member(&user_data.officer_cache, &member, &data.user.id)
-                    .await
-                    .expect("Failed adding member on role change.");
-                println!(
-                    "Added member {} ({}) ({}) as they just got the LPD role.",
-                    &data.user, &data.user.name, &data.user.id
-                );
-            }
-            // Remove an officer if they no longer have the LPD roles
-            else if in_cache_and_lpd && !business::has_lpd_role(&data.roles) {
-                business::remove_member(&user_data.officer_cache, &data.user.id)
-                    .await
-                    .expect("Failed removing member on role change.");
-                println!(
-                    "Removed member {} ({}) ({}) as they no longer have the LPD role.",
-                    &data.user, &data.user.name, &data.user.id
-                );
-            };
-        }
-        serenity::Event::GuildMemberRemove(data) => {
-            business::remove_member(&user_data.officer_cache, &data.user.id)
-                .await
-                .expect("Failed removing member on server leave.");
-            println!(
-                "Removed member {} ({}) ({}) as they no longer have the LPD role.",
-                &data.user, &data.user.name, &data.user.id
-            );
         }
         _ => {}
     }
