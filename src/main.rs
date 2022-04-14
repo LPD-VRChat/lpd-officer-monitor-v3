@@ -16,7 +16,7 @@ use tokio::sync::RwLock;
 
 // use entity::sea_orm::ColumnTrait;
 use entity::sea_orm::EntityTrait;
-use entity::sea_orm::QueryFilter;
+// use entity::sea_orm::QueryFilter;
 // use tracing_subscriber;
 
 pub use entity::officer;
@@ -53,76 +53,45 @@ async fn event_listener(
             println!("{} is connected!", data_about_bot.ready.user.name);
         }
         serenity::Event::GuildMemberUpdate(data) => {
-            let is_in_bot_cache =
-                business::is_lpd_in_cache(&user_data.officer_cache, &data.user.id).await;
+            let member =
+                business::get_member_from_cache(&user_data.officer_cache, &data.user.id).await;
+            let in_cache_and_lpd = match member {
+                Some(ref m) => m.deleted_at.is_none(),
+                None => false,
+            };
 
-            // Add the user to the database if they just got an LPD role
-            if !is_in_bot_cache && business::has_lpd_role(&data.roles) {
-                // Create the new model
-                use entity::sea_orm::entity::*;
-                let active_model = officer::ActiveModel {
-                    id: Set(data.user.id.0),
-                    vrchat_name: Set("".to_owned()),
-                    vrchat_id: Set("".to_owned()),
-                    started_monitoring: Set(chrono::offset::Utc::now().naive_utc()),
-                    deleted_at: Set(None),
-                };
-
-                // Add the user to the database
-                let connection = db::establish_connection().await;
-                let in_cache = business::is_in_cache(&user_data.officer_cache, &data.user.id).await;
-                let model = match in_cache {
-                    true => {
-                        Officer::update(active_model)
-                            .filter(officer::Column::Id.eq(data.user.id.0))
-                            .exec(&connection)
-                            .await?
-                    }
-                    false => {
-                        Officer::insert(active_model).exec(&connection).await?;
-                        Officer::find_by_id(data.user.id.0)
-                            .one(&connection)
-                            .await?
-                            .expect("Officer not in database after they were added.")
-                    }
-                };
-
-                // Add the new member to the cache
-                let mut officer_cache_lock = user_data.officer_cache.write().await;
-                let officer_cache = &mut *officer_cache_lock;
-                officer_cache.insert(data.user.id.0, model);
+            // Add the user to the database if they just got an LPD role but aren't in the cache yet
+            // TODO: Change add_member and remove_member into transactions to allow for better error
+            // handling mid way through.
+            if !in_cache_and_lpd && business::has_lpd_role(&data.roles) {
+                business::add_member(&user_data.officer_cache, &member, &data.user.id)
+                    .await
+                    .expect("Failed adding member on role change.");
+                println!(
+                    "Added member {} ({}) ({}) as they just got the LPD role.",
+                    &data.user, &data.user.name, &data.user.id
+                );
             }
             // Remove an officer if they no longer have the LPD roles
-            else if is_in_bot_cache && !business::has_lpd_role(&data.roles) {
-                let deleted_at_date = chrono::Utc::now().naive_utc();
-
-                // Get the officer selected from the cache
-                let mut officer_cache_lock = user_data.officer_cache.write().await;
-                let officer_cache = &mut *officer_cache_lock;
-                let selected_officer = officer_cache.get_mut(&data.user.id.0).expect(
-                    "Officer removed from the cache between read and removal on member update.",
+            else if in_cache_and_lpd && !business::has_lpd_role(&data.roles) {
+                business::remove_member(&user_data.officer_cache, &data.user.id)
+                    .await
+                    .expect("Failed removing member on role change.");
+                println!(
+                    "Removed member {} ({}) ({}) as they no longer have the LPD role.",
+                    &data.user, &data.user.name, &data.user.id
                 );
-
-                // Update in the cache
-                selected_officer.deleted_at = Some(deleted_at_date);
-
-                // Create the update model
-                use entity::sea_orm::entity::*;
-                let active_model = officer::ActiveModel {
-                    id: Set(data.user.id.0),
-                    deleted_at: Set(Some(deleted_at_date)),
-                    ..Default::default()
-                };
-
-                // Update in the database
-                let connection = db::establish_connection().await;
-                Officer::update(active_model)
-                    .filter(officer::Column::Id.eq(data.user.id.0))
-                    .exec(&connection)
-                    .await?;
             };
         }
-        // serenity::Event::GuildMemberRemove(data) => data.member.user.id,
+        serenity::Event::GuildMemberRemove(data) => {
+            business::remove_member(&user_data.officer_cache, &data.user.id)
+                .await
+                .expect("Failed removing member on server leave.");
+            println!(
+                "Removed member {} ({}) ({}) as they no longer have the LPD role.",
+                &data.user, &data.user.name, &data.user.id
+            );
+        }
         _ => {}
     }
 
