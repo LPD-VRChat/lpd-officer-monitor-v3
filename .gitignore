@@ -7,3 +7,8 @@ settings.toml
 
 # Ignore the database
 db.sqlite3
+
+# Ignore all editor configration
+.vs/
+.vscode/
+.idea/
