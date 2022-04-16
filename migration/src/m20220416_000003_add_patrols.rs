@@ -1,7 +1,5 @@
 use entity::event;
-use entity::officer;
 use entity::patrol;
-use entity::patrol_voice;
 use entity::saved_voice_channel;
 use sea_schema::migration::prelude::*;
 
@@ -62,8 +60,8 @@ impl MigrationTrait for Migration {
         manager.create_foreign_key(
             ForeignKey::create()
                 .name("FK-saved_voice_channel-main_channel")
-                .from(patrol::Entity, patrol::Column::EventId)
-                .to(event::Entity, event::Column::Id)
+                .from(patrol::Entity, patrol::Column::MainChannelId)
+                .to(saved_voice_channel::Entity, saved_voice_channel::Column::Id)
                 .on_delete(ForeignKeyAction::Restrict)
                 .on_update(ForeignKeyAction::Cascade)
                 .to_owned()
