@@ -1220,6 +1220,7 @@ dependencies = [
  "migration",
  "poise",
  "serde",
+ "serde_json",
  "serenity 0.10.10 (git+https://github.com/serenity-rs/serenity)",
  "tokio",
  "toml",

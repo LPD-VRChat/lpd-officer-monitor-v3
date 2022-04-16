@@ -9,9 +9,9 @@ pub async fn event_listener(
     _user_data: &Data,
 ) -> Result<(), Error> {
     match event {
-        // serenity::Event::Ready(data_about_bot) => {
-        //     println!("{} is connected!", data_about_bot.ready.user.name);
-        // }
+        serenity::Event::VoiceStateUpdate(_data) => {
+            println!("VoiceState Update Received");
+        }
         _ => {}
     }
 
