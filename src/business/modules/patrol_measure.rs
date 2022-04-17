@@ -53,8 +53,7 @@ pub async fn get_saved_voice_channel(
                     DbErr::Exec(_) => try_get_channel_query
                         .one(&conn)
                         .await?
-                        .ok_or_else(|| format!("Failed to insert into the database: \"{}\"\nThe saved voice channel still couldn't be found.", err).into())
-                    ,
+                        .ok_or_else(|| format!("Failed to insert into the database: \"{}\"\nThe saved voice channel still couldn't be found.", err).into()),
                     _ => Err(err.into())
                 }
             }
