@@ -1,5 +1,6 @@
 use poise::serenity_prelude as serenity;
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -14,11 +15,18 @@ pub struct RoleConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct PatrolTime {
+    pub monitored_categories: HashSet<u64>,
+    pub monitored_channels: HashSet<u64>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub token: String,
     pub guild_id: u64,
     pub guild_error_text: String,
     pub roles: RoleConfig,
+    pub patrol_time: PatrolTime,
 }
 
 pub fn get_config(file: &str) -> Config {

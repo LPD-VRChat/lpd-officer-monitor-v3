@@ -72,8 +72,12 @@ async fn main() {
     let officer_data: HashMap<_, _> = officer_list.into_iter().map(|m| (m.id, m)).collect();
     let officer_cache = Arc::new(RwLock::new(officer_data));
 
+    // Initialize a patrol_cache cache
+    let on_patrol_cache = Arc::new(RwLock::new(HashMap::new()));
+
     let ctx_data = Data {
         officer_cache: officer_cache.clone(),
+        patrol_cache: on_patrol_cache.clone(),
     };
 
     // Setup logging
