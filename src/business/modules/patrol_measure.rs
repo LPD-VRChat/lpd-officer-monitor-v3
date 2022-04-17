@@ -18,7 +18,7 @@ pub async fn get_saved_voice_channel(
     // Try to get the channel
     let try_get_channel_query = saved_voice_channel::Entity::find()
         .filter(saved_voice_channel::Column::GuildId.eq(guild_id.0))
-        .filter(saved_voice_channel::Column::ChannelId.eq(guild_id.0));
+        .filter(saved_voice_channel::Column::ChannelId.eq(channel_id.0));
     let channel = try_get_channel_query.clone().one(&conn).await?;
 
     match channel {
