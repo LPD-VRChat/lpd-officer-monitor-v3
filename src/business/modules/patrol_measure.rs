@@ -249,11 +249,12 @@ pub async fn event_listener(
                         match on_patrol {
                             true => {
                                 // Someone is moving from voice channel to the other
-                                move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id).await;
+                                move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id)
+                                    .await?;
                             }
                             false => {
                                 // Someone is going on duty
-                                go_on_duty(patrol_cache, user_id, guild_id, channel_id).await;
+                                go_on_duty(patrol_cache, user_id, guild_id, channel_id).await?;
                             }
                         }
                     }
