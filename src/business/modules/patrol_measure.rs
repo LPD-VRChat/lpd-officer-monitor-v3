@@ -12,16 +12,6 @@ use migration::DbErr;
 use poise::serenity_prelude as serenity;
 use std::sync::Arc;
 
-macro_rules! some_or_return {
-    ($x:expr, $y:expr) => {
-        if let Some(x) = $x {
-            x
-        } else {
-            return $y;
-        }
-    };
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct ChannelLog {
     pub guild_id: serenity::GuildId,
