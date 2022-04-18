@@ -90,13 +90,97 @@ pub async fn get_saved_voice_channel(
 /// This function panics if the officer is in the cache but their patrol has no voice logs as there
 /// should always be at a minimum 1 voice log with some start time but not necessarily an end time.
 pub async fn is_on_patrol(patrol_cache: &PatrolCache, user_id: &serenity::UserId) -> bool {
+    // Get a read lock to the patrol cache
     let patrol_cache_lock = patrol_cache.read().await;
     let patrol_cache_map = &*patrol_cache_lock;
 
+    let err_msg = format!("There was an officer in the cache ({}) with no channel_logs, this shouldn't be possible as the minimum is always one.", user_id);
     match patrol_cache_map.get(&user_id.0) {
-        Some(patrol_log) => patrol_log.voice_log.last().unwrap().end.is_none(),
+        Some(patrol_log) => patrol_log.voice_log.last().expect(&err_msg).end.is_none(),
         None => false,
     }
+}
+
+/// Register a user going on duty
+async fn go_on_duty(
+    patrol_cache: &PatrolCache,
+    user_id: serenity::UserId,
+    guild_id: serenity::GuildId,
+    channel_id: serenity::ChannelId,
+) -> Result<(), Error> {
+    // Make sure we don't keep the lock longer than we need to
+    let return_value = {
+        // Get a write lock to the cache
+        let mut patrol_cache_lock = patrol_cache.write().await;
+        let patrol_cache_map = &mut *patrol_cache_lock;
+
+        // Add the patrol to the cache
+        patrol_cache_map.insert(
+            user_id.0,
+            PatrolLog {
+                officer_id: user_id,
+                voice_log: vec![ChannelLog {
+                    guild_id,
+                    channel_id,
+                    start: chrono::Utc::now().naive_utc(),
+                    end: None,
+                }],
+            },
+        )
+    };
+
+    // Throw an error if the user already existed in the cache
+    match return_value {
+        Some(dropped_model) => Err(format!(
+            "PatrolLog dropped as someone was already on duty when go_on_duty was called on them!\nOfficer: {}\nDropped log: {:?}",
+            user_id, dropped_model
+        )
+        .into()),
+        None => Ok(()),
+    }
+}
+
+/// Register a user going off duty
+async fn go_off_duty(patrol_cache: &PatrolCache, user_id: serenity::UserId) {}
+/// Register a user switching on duty comms
+async fn move_on_duty_vc(
+    patrol_cache: &PatrolCache,
+    user_id: serenity::UserId,
+    guild_id: serenity::GuildId,
+    channel_id: serenity::ChannelId,
+) {
+}
+
+/// Check if a channel is being ignored according to the bots settings
+fn is_ignored_channel(channel_id: serenity::ChannelId) -> bool {
+    // TODO: Add a way to ignore specific channels
+    false
+}
+
+/// Check if a channel is being monitored according to the bots settings
+fn is_monitored(channel_id: serenity::ChannelId, category_id: Option<serenity::ChannelId>) -> bool {
+    // Check if the category exists and is monitored
+    if let Some(category_id) = category_id {
+        if CONFIG
+            .patrol_time
+            .monitored_categories
+            .contains(&category_id.0)
+        {
+            return !is_ignored_channel(channel_id);
+        }
+    }
+
+    // If that hasn't returned true, check if the channel is monitored
+    if CONFIG
+        .patrol_time
+        .monitored_channels
+        .contains(&channel_id.0)
+    {
+        return !is_ignored_channel(channel_id);
+    }
+
+    // Neither the category ir channel were monitored, the channel then can't be monitored
+    false
 }
 
 pub async fn event_listener(
@@ -106,40 +190,39 @@ pub async fn event_listener(
     user_data: &Data,
 ) -> Result<(), Error> {
     match event {
-        serenity::Event::Ready(_data) => println!("Patrol Measurement Ready!"),
+        serenity::Event::Ready(_data) => {
+            // TODO: Add people that are on patrol when the bot starts
+            println!("Patrol Measurement Ready!")
+        }
         serenity::Event::VoiceStateUpdate(data) => match data.voice_state.guild_id {
             // Measure patrol time in the main LPD server
             Some(guild_id) if guild_id.0 == CONFIG.guild_id => {
-                let on_patrol =
-                    is_on_patrol(&user_data.patrol_cache, &data.voice_state.user_id).await;
+                // Ready variables to simplify the code
+                let user_id = data.voice_state.user_id;
+                let patrol_cache = &user_data.patrol_cache;
+                let on_patrol = is_on_patrol(patrol_cache, &user_id).await;
+                let get_category_id = |c| ctx.cache.channel_category_id(c);
 
                 match data.voice_state.channel_id {
-                    Some(channel_id) => {
-                        // Someone may be going on duty
-                        if channel_id
+                    // Someone is going on duty or switching on duty comms
+                    Some(channel_id) if is_monitored(channel_id, get_category_id(channel_id)) => {
+                        match on_patrol {
+                            true => {
+                                // Someone is moving from voice channel to the other
+                                move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id).await;
+                            }
+                            false => {
+                                // Someone is going on duty
+                                go_on_duty(patrol_cache, user_id, guild_id, channel_id).await;
+                            }
+                        }
                     }
-                    None => if on_patrol {
-                        // Someone may be going off duty
+                    // Someone is leaving on duty comms
+                    None if on_patrol => {
+                        // Someone is going off duty
+                        go_off_duty(patrol_cache, user_id).await;
                     }
                     _ => {}
-                }
-
-                // Check if that channel is monitored
-                if CONFIG
-                    .patrol_time
-                    .monitored_channels
-                    .contains(&channel_id.0)
-                {}
-
-                // Make sure the channel is in a monitored category
-                let category_id =
-                    some_or_return!(ctx.cache.channel_category_id(channel_id), Ok(()));
-                if CONFIG
-                    .patrol_time
-                    .monitored_categories
-                    .contains(&category_id.0)
-                {
-                    // Measure the time from/to the channel
                 }
             }
             _ => (),
