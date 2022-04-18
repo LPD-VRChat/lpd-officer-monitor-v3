@@ -18,6 +18,7 @@ pub struct RoleConfig {
 pub struct PatrolTime {
     pub monitored_categories: HashSet<u64>,
     pub monitored_channels: HashSet<u64>,
+    pub bad_main_channel_starts: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

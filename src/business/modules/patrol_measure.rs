@@ -1,4 +1,6 @@
+use entity::patrol;
 use entity::saved_voice_channel;
+
 use entity::sea_orm::ColumnTrait;
 use entity::sea_orm::EntityTrait;
 use entity::sea_orm::QueryFilter;
@@ -8,6 +10,7 @@ use crate::db;
 use crate::global::{Data, Error, PatrolCache};
 use migration::DbErr;
 use poise::serenity_prelude as serenity;
+use std::sync::Arc;
 
 macro_rules! some_or_return {
     ($x:expr, $y:expr) => {
@@ -113,6 +116,40 @@ pub async fn is_on_patrol(
     }
 }
 
+/// Get the main channel for some officers voice_logs.
+///
+/// This function returns an error if there are no voice logs as everyone should always have at
+/// least 1.
+async fn get_main_channel(
+    discord_cache: &Arc<serenity::Cache>,
+    voice_logs: &[ChannelLog],
+) -> Result<serenity::ChannelId, Error> {
+    // Loop through each voice log and see if it is in a channel that can be a main channel
+    let main_channel = voice_logs.iter().find(|voice_log| {
+        // Get the name of the current channel
+        let some_name = discord_cache.guild_channel_field(voice_log.channel_id, |c| c.name.clone());
+        // Check if the name of this channel can be a main channel according to the settings
+        match some_name {
+            Some(name) => CONFIG
+                .patrol_time
+                .bad_main_channel_starts
+                .iter()
+                .find(|start| name.starts_with(start.as_str()))
+                .is_some(),
+            None => false,
+        }
+    });
+
+    // Give the current channel if no channel was found.
+    match main_channel {
+        Some(channel_log) => Ok(channel_log.channel_id),
+        None => Ok(voice_logs
+            .last()
+            .ok_or(no_voice_log_err(serenity::UserId { 0: 0 }))?
+            .channel_id),
+    }
+}
+
 /// Register a user going on duty
 async fn go_on_duty(
     patrol_cache: &PatrolCache,
@@ -153,7 +190,63 @@ async fn go_on_duty(
 }
 
 /// Register a user going off duty
-async fn go_off_duty(patrol_cache: &PatrolCache, user_id: serenity::UserId) {}
+async fn go_off_duty(
+    patrol_cache: &PatrolCache,
+    discord_cache: &Arc<serenity::Cache>,
+    user_id: serenity::UserId,
+) -> Result<(), Error> {
+    // Write the results to the database
+    {
+        // Get a read lock to the patrol cache
+        let patrol_cache_lock = patrol_cache.read().await;
+        let patrol_cache_map = &*patrol_cache_lock;
+
+        // Get the patrol log for specified officer
+        let now = chrono::Utc::now().naive_utc();
+        let patrol_log = patrol_cache_map.get(&user_id.0).ok_or(format!(
+            "Officer not on duty ({}) but tried to move from one on duty VC to another one.",
+            user_id
+        ))?;
+
+        // Get the main channel
+        let main_channel_discord_id =
+            get_main_channel(discord_cache, &patrol_log.voice_log).await?;
+        let main_channel =
+            get_saved_voice_channel(CONFIG.guild_id.into(), main_channel_discord_id).await?;
+
+        // Create the models for the data
+        // TODO: Save each voice log individually
+        use entity::sea_orm::entity::*;
+        let model = patrol::ActiveModel {
+            officer_id: Set(user_id.0),
+            main_channel_id: Set(main_channel.id),
+            start: Set(patrol_log
+                .voice_log
+                .first()
+                .ok_or(no_voice_log_err(user_id))?
+                .start),
+            end: Set(now),
+            event_id: Set(None),
+            ..Default::default()
+        };
+
+        // Save the data to the database
+        let conn = db::establish_connection().await;
+        model.save(&conn).await?;
+    }
+
+    // Remove the patrol from the cache
+    {
+        // Get a write lock to the cache
+        let mut patrol_cache_lock = patrol_cache.write().await;
+        let patrol_cache_map = &mut *patrol_cache_lock;
+
+        // Remove the value
+        patrol_cache_map.remove(&user_id.0);
+    }
+
+    Ok(())
+}
 
 /// Register a user switching on duty comms
 async fn move_on_duty_vc(
@@ -192,7 +285,7 @@ async fn move_on_duty_vc(
 }
 
 /// Check if a channel is being ignored according to the bots settings
-fn is_ignored_channel(channel_id: serenity::ChannelId) -> bool {
+fn is_ignored_channel(_channel_id: serenity::ChannelId) -> bool {
     // TODO: Add a way to ignore specific channels
     false
 }
@@ -261,7 +354,7 @@ pub async fn event_listener(
                     // Someone is leaving on duty comms
                     None if on_patrol => {
                         // Someone is going off duty
-                        go_off_duty(patrol_cache, user_id).await;
+                        go_off_duty(patrol_cache, &ctx.cache, user_id).await?;
                     }
                     _ => {}
                 }
