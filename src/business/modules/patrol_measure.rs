@@ -32,6 +32,11 @@ pub struct PatrolLog {
     pub voice_log: Vec<ChannelLog>,
 }
 
+#[inline]
+fn no_voice_log_err(user_id: serenity::UserId) -> String {
+    format!("There was an officer in the cache ({}) with no channel_logs, this shouldn't be possible as the minimum is always one.", user_id)
+}
+
 /// Get a saved voice channel or create one in the database if it doesn't exist.
 pub async fn get_saved_voice_channel(
     guild_id: serenity::GuildId,
@@ -91,18 +96,17 @@ pub async fn get_saved_voice_channel(
 /// should always be at a minimum 1 voice log with some start time but not necessarily an end time.
 pub async fn is_on_patrol(
     patrol_cache: &PatrolCache,
-    user_id: &serenity::UserId,
+    user_id: serenity::UserId,
 ) -> Result<bool, Error> {
     // Get a read lock to the patrol cache
     let patrol_cache_lock = patrol_cache.read().await;
     let patrol_cache_map = &*patrol_cache_lock;
 
-    let err_msg = format!("There was an officer in the cache ({}) with no channel_logs, this shouldn't be possible as the minimum is always one.", user_id);
     match patrol_cache_map.get(&user_id.0) {
         Some(patrol_log) => Ok(patrol_log
             .voice_log
             .last()
-            .ok_or::<Error>(err_msg.into())?
+            .ok_or::<Error>(no_voice_log_err(user_id).into())?
             .end
             .is_none()),
         None => Ok(false),
@@ -150,13 +154,41 @@ async fn go_on_duty(
 
 /// Register a user going off duty
 async fn go_off_duty(patrol_cache: &PatrolCache, user_id: serenity::UserId) {}
+
 /// Register a user switching on duty comms
 async fn move_on_duty_vc(
     patrol_cache: &PatrolCache,
     user_id: serenity::UserId,
     guild_id: serenity::GuildId,
     channel_id: serenity::ChannelId,
-) {
+) -> Result<(), Error> {
+    // Get a write lock to the cache
+    let mut patrol_cache_lock = patrol_cache.write().await;
+    let patrol_cache_map = &mut *patrol_cache_lock;
+
+    // Get the patrol log for specified officer
+    let now = chrono::Utc::now().naive_utc();
+    let patrol_log = patrol_cache_map.get_mut(&user_id.0).ok_or(format!(
+        "Officer not on duty ({}) but tried to move from one on duty VC to another one.",
+        user_id
+    ))?;
+
+    // End the last VC time
+    patrol_log
+        .voice_log
+        .last_mut()
+        .ok_or(no_voice_log_err(user_id))?
+        .end = Some(now);
+
+    // Start the new VC time
+    patrol_log.voice_log.push(ChannelLog {
+        guild_id,
+        channel_id,
+        start: now,
+        end: None,
+    });
+
+    Ok(())
 }
 
 /// Check if a channel is being ignored according to the bots settings
@@ -208,7 +240,7 @@ pub async fn event_listener(
                 // Ready variables to simplify the code
                 let user_id = data.voice_state.user_id;
                 let patrol_cache = &user_data.patrol_cache;
-                let on_patrol = is_on_patrol(patrol_cache, &user_id).await?;
+                let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
                 let get_category_id = |c| ctx.cache.channel_category_id(c);
 
                 match data.voice_state.channel_id {
