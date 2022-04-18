@@ -322,6 +322,10 @@ pub async fn event_listener(
             Some(guild_id) if guild_id.0 == CONFIG.guild_id => {
                 // Ready variables to simplify the code
                 let user_id = data.voice_state.user_id;
+                let user_name = ctx
+                    .cache
+                    .member_field(CONFIG.guild_id, user_id, |u| u.user.name.clone())
+                    .unwrap_or_else(|| "Username not found".to_owned());
                 let patrol_cache = &user_data.patrol_cache;
                 let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
                 let get_category_id = |c| ctx.cache.channel_category_id(c);
@@ -329,14 +333,29 @@ pub async fn event_listener(
                 match data.voice_state.channel_id {
                     // Someone is going on duty or switching on duty comms
                     Some(channel_id) if is_monitored(channel_id, get_category_id(channel_id)) => {
+                        // Prepare more display data
+                        let channel_name = ctx
+                            .cache
+                            .guild_channel_field(CONFIG.guild_id, |c| c.name.clone())
+                            .unwrap_or_else(|| "Channel name found".to_owned());
+
+                        // Check if they were just switching comms or going on duty
                         match on_patrol {
                             true => {
                                 // Someone is moving from voice channel to the other
+                                println!(
+                                    "{}, ({}) is on duty and switching to {} ({})",
+                                    user_name, user_id.0, channel_name, channel_id.0,
+                                );
                                 move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id)
                                     .await?;
                             }
                             false => {
                                 // Someone is going on duty
+                                println!(
+                                    "{}, ({}) is going on duty in {} ({})",
+                                    user_name, user_id.0, channel_name, channel_id.0,
+                                );
                                 go_on_duty(patrol_cache, user_id, guild_id, channel_id).await?;
                             }
                         }
@@ -344,6 +363,7 @@ pub async fn event_listener(
                     // Someone is leaving on duty comms
                     None if on_patrol => {
                         // Someone is going off duty
+                        println!("{}, ({}) is going off duty", user_name, user_id.0);
                         go_off_duty(patrol_cache, &ctx.cache, user_id).await?;
                     }
                     _ => {}
