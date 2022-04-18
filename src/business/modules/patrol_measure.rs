@@ -89,15 +89,23 @@ pub async fn get_saved_voice_channel(
 ///
 /// This function panics if the officer is in the cache but their patrol has no voice logs as there
 /// should always be at a minimum 1 voice log with some start time but not necessarily an end time.
-pub async fn is_on_patrol(patrol_cache: &PatrolCache, user_id: &serenity::UserId) -> bool {
+pub async fn is_on_patrol(
+    patrol_cache: &PatrolCache,
+    user_id: &serenity::UserId,
+) -> Result<bool, Error> {
     // Get a read lock to the patrol cache
     let patrol_cache_lock = patrol_cache.read().await;
     let patrol_cache_map = &*patrol_cache_lock;
 
     let err_msg = format!("There was an officer in the cache ({}) with no channel_logs, this shouldn't be possible as the minimum is always one.", user_id);
     match patrol_cache_map.get(&user_id.0) {
-        Some(patrol_log) => patrol_log.voice_log.last().expect(&err_msg).end.is_none(),
-        None => false,
+        Some(patrol_log) => Ok(patrol_log
+            .voice_log
+            .last()
+            .ok_or::<Error>(err_msg.into())?
+            .end
+            .is_none()),
+        None => Ok(false),
     }
 }
 
@@ -200,7 +208,7 @@ pub async fn event_listener(
                 // Ready variables to simplify the code
                 let user_id = data.voice_state.user_id;
                 let patrol_cache = &user_data.patrol_cache;
-                let on_patrol = is_on_patrol(patrol_cache, &user_id).await;
+                let on_patrol = is_on_patrol(patrol_cache, &user_id).await?;
                 let get_category_id = |c| ctx.cache.channel_category_id(c);
 
                 match data.voice_state.channel_id {
