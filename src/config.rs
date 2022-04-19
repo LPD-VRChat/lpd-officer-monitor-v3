@@ -5,8 +5,13 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+#[cfg(not(test))]
 lazy_static! {
     pub static ref CONFIG: Config = get_config("settings.toml");
+}
+#[cfg(test)]
+lazy_static! {
+    pub static ref CONFIG: Config = get_config("test_settings.toml");
 }
 
 #[derive(Debug, Deserialize, Clone)]

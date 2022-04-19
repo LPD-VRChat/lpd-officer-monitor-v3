@@ -377,3 +377,25 @@ pub async fn event_listener(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_monitored_channel() {
+        let monitored_channel = serenity::ChannelId::from(566802620799516672);
+        let random_channel = serenity::ChannelId::from(345763573642542534);
+        assert_eq!(is_monitored(monitored_channel, None), true);
+        assert_eq!(is_monitored(random_channel, None), false);
+    }
+
+    #[test]
+    fn test_is_monitored_category() {
+        let monitored_category = serenity::ChannelId::from(599764719212953610);
+        let random_category = serenity::ChannelId::from(346423532524764426);
+        let random_channel = serenity::ChannelId::from(345763573642542534);
+        assert_eq!(is_monitored(random_channel, Some(monitored_category)), true);
+        assert_eq!(is_monitored(random_channel, Some(random_category)), false);
+    }
+}
