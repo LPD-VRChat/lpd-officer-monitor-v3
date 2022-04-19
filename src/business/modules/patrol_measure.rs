@@ -85,8 +85,9 @@ pub async fn get_saved_voice_channel(
 
 /// Check if a officer is on patrol at the moment.
 ///
-/// This function panics if the officer is in the cache but their patrol has no voice logs as there
-/// should always be at a minimum 1 voice log with some start time but not necessarily an end time.
+/// This function returns an error if the officer is in the cache but their patrol has no voice
+/// logs as there should always be at a minimum 1 voice log with some start time but not
+/// necessarily an end time.
 pub async fn is_on_patrol(
     patrol_cache: &PatrolCache,
     user_id: serenity::UserId,
