@@ -307,6 +307,13 @@ fn is_monitored(channel_id: serenity::ChannelId, category_id: Option<serenity::C
     false
 }
 
+async fn get_category_id(
+    ctx: &serenity::Context,
+    channel_id: serenity::ChannelId,
+) -> Result<Option<serenity::ChannelId>, Error> {
+    Ok(channel_id.to_channel(ctx).await?.category().map(|c| c.id))
+}
+
 pub async fn event_listener(
     ctx: &serenity::Context,
     event: &serenity::Event,
@@ -329,11 +336,13 @@ pub async fn event_listener(
                     .unwrap_or_else(|| "Username not found".to_owned());
                 let patrol_cache = &user_data.patrol_cache;
                 let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
-                let get_category_id = |c| ctx.cache.channel_category_id(c);
+                // let get_category_id = |c: serenity::ChannelId| ;
 
                 match data.voice_state.channel_id {
                     // Someone is going on duty or switching on duty comms
-                    Some(channel_id) if is_monitored(channel_id, get_category_id(channel_id)) => {
+                    Some(channel_id)
+                        if is_monitored(channel_id, get_category_id(ctx, channel_id).await?) =>
+                    {
                         // Prepare more display data
                         let channel_name = ctx
                             .cache

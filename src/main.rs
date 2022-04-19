@@ -109,7 +109,8 @@ async fn main() {
             b.intents(
                 serenity::GatewayIntents::non_privileged()
                     | serenity::GatewayIntents::MESSAGE_CONTENT
-                    | serenity::GatewayIntents::GUILD_MEMBERS,
+                    | serenity::GatewayIntents::GUILD_MEMBERS
+                    | serenity::GatewayIntents::GUILD_PRESENCES,
             )
         })
         .run()
