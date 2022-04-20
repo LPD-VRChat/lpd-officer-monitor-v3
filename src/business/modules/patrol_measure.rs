@@ -307,6 +307,16 @@ fn is_monitored(channel_id: serenity::ChannelId, category_id: Option<serenity::C
     false
 }
 
+async fn is_monitored_cat(
+    ctx: &serenity::Context,
+    channel_id: serenity::ChannelId,
+) -> Result<bool, Error> {
+    Ok(is_monitored(
+        channel_id,
+        get_category_id(ctx, channel_id).await?,
+    ))
+}
+
 async fn get_category_id(
     ctx: &serenity::Context,
     channel_id: serenity::ChannelId,
@@ -316,6 +326,12 @@ async fn get_category_id(
         serenity::Channel::Category(channel) => Ok(Some(channel.id)),
         _ => Ok(None),
     }
+}
+
+fn get_channel_name(ctx: &serenity::Context, channel_id: serenity::ChannelId) -> String {
+    ctx.cache
+        .guild_channel_field(channel_id, |c| c.name.clone())
+        .unwrap_or_else(|| "Unknown".to_owned())
 }
 
 pub async fn event_listener(
@@ -342,38 +358,29 @@ pub async fn event_listener(
                 let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
 
                 match data.voice_state.channel_id {
-                    // Someone is going on duty or switching on duty comms
-                    Some(channel_id)
-                        if is_monitored(channel_id, get_category_id(ctx, channel_id).await?) =>
-                    {
-                        // Prepare more display data
-                        let channel_name = ctx
-                            .cache
-                            .guild_channel_field(channel_id, |c| c.name.clone())
-                            .unwrap_or_else(|| "Unknown".to_owned());
-
-                        // Check if they were just switching comms or going on duty
-                        match on_patrol {
-                            true => {
-                                // Someone is moving from voice channel to the other
-                                println!(
-                                    "{}, ({}) is on duty and switching to {} ({})",
-                                    user_name, user_id.0, channel_name, channel_id.0,
-                                );
-                                move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id)
-                                    .await?;
-                            }
-                            false => {
-                                // Someone is going on duty
-                                println!(
-                                    "{}, ({}) is going on duty in {} ({})",
-                                    user_name, user_id.0, channel_name, channel_id.0,
-                                );
-                                go_on_duty(patrol_cache, user_id, guild_id, channel_id).await?;
-                            }
-                        }
+                    // An officer is going on duty
+                    Some(channel_id) if !on_patrol && is_monitored_cat(ctx, channel_id).await? => {
+                        println!(
+                            "{}, ({}) is going on duty in {} ({})",
+                            user_name,
+                            user_id.0,
+                            get_channel_name(ctx, channel_id),
+                            channel_id.0,
+                        );
+                        go_on_duty(patrol_cache, user_id, guild_id, channel_id).await?;
                     }
-                    // Someone is leaving on duty comms
+                    // An officer is moving from voice channel to the other
+                    Some(channel_id) if on_patrol && is_monitored_cat(ctx, channel_id).await? => {
+                        println!(
+                            "{}, ({}) is on duty and switching to {} ({})",
+                            user_name,
+                            user_id.0,
+                            get_channel_name(ctx, channel_id),
+                            channel_id.0,
+                        );
+                        move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id).await?;
+                    }
+                    // An officer is leaving on duty comms
                     Some(_) | None if on_patrol => {
                         // Someone is going off duty
                         println!("{}, ({}) is going off duty", user_name, user_id.0);
