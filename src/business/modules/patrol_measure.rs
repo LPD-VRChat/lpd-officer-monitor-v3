@@ -276,9 +276,10 @@ async fn move_on_duty_vc(
 }
 
 /// Check if a channel is being ignored according to the bots settings
-fn is_ignored_channel(_channel_id: serenity::ChannelId) -> bool {
-    // TODO: Add a way to ignore specific channels
-    false
+///
+/// This overwrites any settings to monitor the channels category or even to monitor this channel.
+fn is_ignored_channel(channel_id: serenity::ChannelId) -> bool {
+    CONFIG.patrol_time.ignored_channels.contains(&channel_id.0)
 }
 
 /// Check if a channel is being monitored according to the bots settings

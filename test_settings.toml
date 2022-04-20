@@ -8,4 +8,5 @@ lpd = 655133459714670592
 [patrol_time]
 monitored_categories = [599764719212953610]
 monitored_channels = [566802620799516672]
+ignored_channels = [829126270008426506]
 bad_main_channel_starts = ["Dispatch", "At Station", "Training"]
