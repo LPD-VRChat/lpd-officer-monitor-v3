@@ -358,28 +358,31 @@ pub async fn event_listener(
                 let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
 
                 match data.voice_state.channel_id {
-                    // An officer is going on duty
-                    Some(channel_id) if !on_patrol && is_monitored_cat(ctx, channel_id).await? => {
-                        println!(
-                            "{}, ({}) is going on duty in {} ({})",
-                            user_name,
-                            user_id.0,
-                            get_channel_name(ctx, channel_id),
-                            channel_id.0,
-                        );
-                        go_on_duty(patrol_cache, user_id, guild_id, channel_id).await?;
-                    }
-                    // An officer is moving from voice channel to the other
-                    Some(channel_id) if on_patrol && is_monitored_cat(ctx, channel_id).await? => {
-                        println!(
-                            "{}, ({}) is on duty and switching to {} ({})",
-                            user_name,
-                            user_id.0,
-                            get_channel_name(ctx, channel_id),
-                            channel_id.0,
-                        );
-                        move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id).await?;
-                    }
+                    Some(channel_id) if is_monitored_cat(ctx, channel_id).await? => match on_patrol
+                    {
+                        // An officer is going on duty
+                        false => {
+                            println!(
+                                "{}, ({}) is going on duty in {} ({})",
+                                user_name,
+                                user_id.0,
+                                get_channel_name(ctx, channel_id),
+                                channel_id.0,
+                            );
+                            go_on_duty(patrol_cache, user_id, guild_id, channel_id).await?;
+                        }
+                        // An officer is moving from voice channel to the other
+                        true => {
+                            println!(
+                                "{}, ({}) is on duty and switching to {} ({})",
+                                user_name,
+                                user_id.0,
+                                get_channel_name(ctx, channel_id),
+                                channel_id.0,
+                            );
+                            move_on_duty_vc(patrol_cache, user_id, guild_id, channel_id).await?;
+                        }
+                    },
                     // An officer is leaving on duty comms
                     Some(_) | None if on_patrol => {
                         // Someone is going off duty
