@@ -340,7 +340,6 @@ pub async fn event_listener(
                     .unwrap_or_else(|| "Unknown".to_owned());
                 let patrol_cache = &user_data.patrol_cache;
                 let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
-                // let get_category_id = |c: serenity::ChannelId| ;
 
                 match data.voice_state.channel_id {
                     // Someone is going on duty or switching on duty comms
