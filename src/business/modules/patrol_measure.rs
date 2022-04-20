@@ -337,7 +337,7 @@ pub async fn event_listener(
                 let user_name = ctx
                     .cache
                     .member_field(CONFIG.guild_id, user_id, |u| u.user.name.clone())
-                    .unwrap_or_else(|| "Username not found".to_owned());
+                    .unwrap_or_else(|| "Unknown".to_owned());
                 let patrol_cache = &user_data.patrol_cache;
                 let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
                 // let get_category_id = |c: serenity::ChannelId| ;
@@ -350,8 +350,8 @@ pub async fn event_listener(
                         // Prepare more display data
                         let channel_name = ctx
                             .cache
-                            .guild_channel_field(CONFIG.guild_id, |c| c.name.clone())
-                            .unwrap_or_else(|| "Channel name found".to_owned());
+                            .guild_channel_field(channel_id, |c| c.name.clone())
+                            .unwrap_or_else(|| "Unknown".to_owned());
 
                         // Check if they were just switching comms or going on duty
                         match on_patrol {
@@ -375,7 +375,7 @@ pub async fn event_listener(
                         }
                     }
                     // Someone is leaving on duty comms
-                    None if on_patrol => {
+                    Some(_) | None if on_patrol => {
                         // Someone is going off duty
                         println!("{}, ({}) is going off duty", user_name, user_id.0);
                         go_off_duty(patrol_cache, &ctx.cache, user_id).await?;
