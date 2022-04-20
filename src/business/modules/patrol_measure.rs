@@ -311,7 +311,11 @@ async fn get_category_id(
     ctx: &serenity::Context,
     channel_id: serenity::ChannelId,
 ) -> Result<Option<serenity::ChannelId>, Error> {
-    Ok(channel_id.to_channel(ctx).await?.category().map(|c| c.id))
+    match channel_id.to_channel(ctx).await? {
+        serenity::Channel::Guild(channel) => Ok(channel.parent_id),
+        serenity::Channel::Category(channel) => Ok(Some(channel.id)),
+        _ => Ok(None),
+    }
 }
 
 pub async fn event_listener(
