@@ -12,6 +12,9 @@ use migration::DbErr;
 use poise::serenity_prelude as serenity;
 use std::sync::Arc;
 
+use std::collections::HashMap;
+use tokio::sync::RwLock;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ChannelLog {
     pub guild_id: serenity::GuildId,
@@ -398,6 +401,10 @@ pub async fn event_listener(
     }
 
     Ok(())
+}
+
+pub async fn cache_init() -> PatrolCache {
+    Arc::new(RwLock::new(HashMap::new()))
 }
 
 #[cfg(test)]

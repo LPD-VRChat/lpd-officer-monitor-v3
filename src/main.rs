@@ -8,14 +8,11 @@ use crate::global::{Context, Data, Error};
 use poise::serenity_prelude as serenity;
 
 use std::boxed::Box;
-use std::collections::HashMap;
 use std::string::String;
-use std::sync::Arc;
 use std::vec::Vec;
-use tokio::sync::RwLock;
 
 // use entity::sea_orm::ColumnTrait;
-use entity::sea_orm::EntityTrait;
+// use entity::sea_orm::EntityTrait;
 // use entity::sea_orm::QueryFilter;
 // use tracing_subscriber;
 
@@ -60,21 +57,9 @@ async fn event_listener(
 
 #[tokio::main]
 async fn main() {
-    // Fill in the officer cache with all the officers from the database
-    let connection = db::establish_connection().await;
-    let officer_list = Officer::find()
-        .all(&connection)
-        .await
-        .expect("Couldn't fetch the officers from the database.");
-    let officer_data: HashMap<_, _> = officer_list.into_iter().map(|m| (m.id, m)).collect();
-    let officer_cache = Arc::new(RwLock::new(officer_data));
-
-    // Initialize a patrol_cache cache
-    let on_patrol_cache = Arc::new(RwLock::new(HashMap::new()));
-
     let ctx_data = Data {
-        officer_cache: officer_cache.clone(),
-        patrol_cache: on_patrol_cache.clone(),
+        officer_cache: business::member_management::cache_init().await,
+        patrol_cache: business::patrol_measure::cache_init().await,
     };
 
     // Setup logging

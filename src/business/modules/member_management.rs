@@ -1,3 +1,4 @@
+use entity::sea_orm::EntityTrait;
 use entity::sea_orm::QueryFilter;
 use poise::serenity_prelude as serenity;
 
@@ -7,6 +8,10 @@ use crate::global::{Data, Error, OfficerCache};
 
 use entity::officer;
 use entity::officer::Entity as Officer;
+
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub fn has_lpd_role(roles: &[serenity::RoleId]) -> bool {
     // TODO: Add the other LPD roles.
@@ -189,4 +194,15 @@ pub async fn event_listener(
     }
 
     Ok(())
+}
+
+pub async fn cache_init() -> OfficerCache {
+    // Fill in the officer cache with all the officers from the database
+    let connection = db::establish_connection().await;
+    let officer_list = Officer::find()
+        .all(&connection)
+        .await
+        .expect("Couldn't fetch the officers from the database.");
+    let officer_data: HashMap<_, _> = officer_list.into_iter().map(|m| (m.id, m)).collect();
+    Arc::new(RwLock::new(officer_data))
 }
