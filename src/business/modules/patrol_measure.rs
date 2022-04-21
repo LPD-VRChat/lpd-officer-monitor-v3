@@ -63,7 +63,7 @@ pub async fn get_saved_voice_channel(
                 Ok(active_model) => Ok(
                     // TODO: Change this into automatic conversion once that is added to SeaORM
                     saved_voice_channel::Model {
-                        id: active_model.id.as_ref().clone(),
+                        id: active_model.id.as_ref().to_owned(),
                         guild_id: guild_id.0,
                         channel_id: channel_id.0,
                         name: "".to_owned()
@@ -100,7 +100,7 @@ pub async fn is_on_patrol(
         Some(patrol_log) => Ok(patrol_log
             .voice_log
             .last()
-            .ok_or::<Error>(no_voice_log_err(user_id).into())?
+            .ok_or_else(|| Error::from(no_voice_log_err(user_id)))?
             .end
             .is_none()),
         None => Ok(false),
@@ -125,8 +125,7 @@ async fn get_main_channel(
                 .patrol_time
                 .bad_main_channel_starts
                 .iter()
-                .find(|start| name.starts_with(start.as_str()))
-                .is_some(),
+                .any(|start| name.starts_with(start.as_str())),
             None => false,
         }
     });
@@ -136,7 +135,7 @@ async fn get_main_channel(
         Some(channel_log) => Ok(channel_log.channel_id),
         None => Ok(voice_logs
             .last()
-            .ok_or(no_voice_log_err(serenity::UserId { 0: 0 }))?
+            .ok_or_else(|| Error::from(no_voice_log_err(serenity::UserId { 0: 0 })))?
             .channel_id),
     }
 }
@@ -214,7 +213,7 @@ async fn go_off_duty(
             start: Set(patrol_log
                 .voice_log
                 .first()
-                .ok_or(no_voice_log_err(user_id))?
+                .ok_or_else(|| Error::from(no_voice_log_err(user_id)))?
                 .start),
             end: Set(now),
             event_id: Set(None),
@@ -261,7 +260,7 @@ async fn move_on_duty_vc(
     patrol_log
         .voice_log
         .last_mut()
-        .ok_or(no_voice_log_err(user_id))?
+        .ok_or_else(|| Error::from(no_voice_log_err(user_id)))?
         .end = Some(now);
 
     // Start the new VC time

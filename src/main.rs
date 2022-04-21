@@ -51,11 +51,8 @@ async fn event_listener(
     business::member_management::event_listener(ctx, event, framework, user_data).await?;
     business::patrol_measure::event_listener(ctx, event, framework, user_data).await?;
 
-    match event {
-        serenity::Event::Ready(data_about_bot) => {
-            println!("{} is connected!", data_about_bot.ready.user.name);
-        }
-        _ => {}
+    if let serenity::Event::Ready(data_about_bot) = event {
+        println!("{} is connected!", data_about_bot.ready.user.name);
     }
 
     Ok(())
