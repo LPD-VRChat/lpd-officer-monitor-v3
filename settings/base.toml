@@ -1,12 +1,12 @@
 token = "---"
-guild_id = 566315650864381953
+guild_id = 0
 guild_error_text = "Current guild couldn't be found, maybe the bot isn't in the right guild or the value in the settings file is incorrect?"
 
 [roles]
-lpd = 655133459714670592
+lpd = 12345
 
 [patrol_time]
-monitored_categories = [599764719212953610]
-monitored_channels = [566802620799516672]
-ignored_channels = [829126270008426506]
+monitored_categories = [23456]
+monitored_channels = [34567]
+ignored_channels = [45678]
 bad_main_channel_starts = ["Dispatch", "At Station", "Training"]

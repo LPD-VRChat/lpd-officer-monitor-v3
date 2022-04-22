@@ -2,7 +2,7 @@
 /target
 
 # Ignore all the settings
-settings.toml
+local.toml
 .env
 
 # Ignore the database
