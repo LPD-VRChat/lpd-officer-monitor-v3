@@ -110,6 +110,20 @@ pub async fn is_on_patrol(
     }
 }
 
+pub async fn get_patrols(
+    from: chrono::NaiveDateTime,
+    to: chrono::NaiveDateTime,
+    user_id: serenity::UserId,
+) -> Result<Vec<patrol::Model>, Error> {
+    let conn = db::establish_connection().await;
+    Ok(patrol::Entity::find()
+        .filter(patrol::Column::Start.gt(from))
+        .filter(patrol::Column::End.lt(to))
+        .filter(patrol::Column::Id.eq(user_id.0))
+        .all(&conn)
+        .await?)
+}
+
 /// Get the main channel for some officers voice_logs.
 ///
 /// This function returns an error if there are no voice logs as everyone should always have at

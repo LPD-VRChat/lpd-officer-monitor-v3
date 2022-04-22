@@ -81,7 +81,7 @@ async fn main() {
                 )),
                 ..Default::default()
             },
-            commands: vec![help(), commands::rtv()],
+            commands: vec![help(), commands::patrol_time(), commands::rtv()],
             listener: |ctx, event, framework, user_data| {
                 Box::pin(event_listener(ctx, event, framework, user_data))
             },
