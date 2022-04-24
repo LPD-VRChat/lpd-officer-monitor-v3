@@ -119,9 +119,21 @@ pub async fn get_patrols(
     Ok(patrol::Entity::find()
         .filter(patrol::Column::Start.gt(from))
         .filter(patrol::Column::End.lt(to))
-        .filter(patrol::Column::Id.eq(user_id.0))
+        .filter(patrol::Column::OfficerId.eq(user_id.0))
         .all(&conn)
         .await?)
+}
+
+pub async fn get_patrol_time(
+    from: chrono::NaiveDateTime,
+    to: chrono::NaiveDateTime,
+    user_id: serenity::UserId,
+) -> Result<i64, Error> {
+    let patrols = get_patrols(from, to, user_id).await?;
+    let patrol_time = patrols.iter().fold(0, |acc, item| {
+        acc + item.end.signed_duration_since(item.start).num_seconds()
+    });
+    Ok(patrol_time)
 }
 
 /// Get the main channel for some officers voice_logs.

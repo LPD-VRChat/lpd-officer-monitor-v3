@@ -57,11 +57,6 @@ async fn event_listener(
 
 #[tokio::main]
 async fn main() {
-    let ctx_data = Data {
-        officer_cache: business::member_management::cache_init().await,
-        patrol_cache: business::patrol_measure::cache_init().await,
-    };
-
     // Setup logging
     // tracing_subscriber::fmt()
     //     .with_max_level(tracing::Level::DEBUG)
@@ -71,7 +66,26 @@ async fn main() {
 
     poise::Framework::build()
         .token(&config::CONFIG.token)
-        .user_data_setup(move |_ctx, _ready, _framework| Box::pin(async move { Ok(ctx_data) }))
+        .user_data_setup(move |ctx, _ready, framework| {
+            Box::pin(async move {
+                // Initialize the slash commands
+                poise::serenity_prelude::GuildId(config::CONFIG.guild_id)
+                    .set_application_commands(ctx, |b| {
+                        *b = poise::samples::create_application_commands(
+                            &framework.options().commands,
+                        );
+                        b
+                    })
+                    .await
+                    .unwrap();
+
+                // Ready the user data
+                Ok(Data {
+                    officer_cache: business::member_management::cache_init().await,
+                    patrol_cache: business::patrol_measure::cache_init().await,
+                })
+            })
+        })
         .options(poise::FrameworkOptions {
             // configure framework here
             prefix_options: poise::PrefixFrameworkOptions {
