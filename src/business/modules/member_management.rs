@@ -146,13 +146,16 @@ async fn remove_member(
 
 pub async fn event_listener(
     _ctx: &serenity::Context,
-    event: &serenity::Event,
+    event: &poise::Event<'_>,
     _framework: &poise::Framework<Data, Error>,
     user_data: &Data,
 ) -> Result<(), Error> {
     match event {
-        serenity::Event::GuildMemberUpdate(data) => {
-            let member = get_member_from_cache(&user_data.officer_cache, &data.user.id).await;
+        poise::Event::GuildMemberUpdate {
+            old_if_available: _,
+            new,
+        } => {
+            let member = get_member_from_cache(&user_data.officer_cache, &new.user.id).await;
             let in_cache_and_lpd = match member {
                 Some(ref m) => m.deleted_at.is_none(),
                 None => false,
@@ -161,33 +164,37 @@ pub async fn event_listener(
             // Add the user to the database if they just got an LPD role but aren't in the cache yet
             // TODO: Change add_member and remove_member into transactions to allow for better error
             // handling mid way through.
-            if !in_cache_and_lpd && has_lpd_role(&data.roles) {
-                add_member(&user_data.officer_cache, &member, &data.user.id)
+            if !in_cache_and_lpd && has_lpd_role(&new.roles) {
+                add_member(&user_data.officer_cache, &member, &new.user.id)
                     .await
                     .expect("Failed adding member on role change.");
                 println!(
                     "Added member {} ({}) ({}) as they just got the LPD role.",
-                    &data.user, &data.user.name, &data.user.id
+                    &new.user, &new.user.name, &new.user.id
                 );
             }
             // Remove an officer if they no longer have the LPD roles
-            else if in_cache_and_lpd && !has_lpd_role(&data.roles) {
-                remove_member(&user_data.officer_cache, &data.user.id)
+            else if in_cache_and_lpd && !has_lpd_role(&new.roles) {
+                remove_member(&user_data.officer_cache, &new.user.id)
                     .await
                     .expect("Failed removing member on role change.");
                 println!(
                     "Removed member {} ({}) ({}) as they no longer have the LPD role.",
-                    &data.user, &data.user.name, &data.user.id
+                    &new.user, &new.user.name, &new.user.id
                 );
             };
         }
-        serenity::Event::GuildMemberRemove(data) => {
-            remove_member(&user_data.officer_cache, &data.user.id)
+        poise::Event::GuildMemberRemoval {
+            guild_id: _,
+            user,
+            member_data_if_available: _,
+        } => {
+            remove_member(&user_data.officer_cache, &user.id)
                 .await
                 .expect("Failed removing member on server leave.");
             println!(
                 "Removed member {} ({}) ({}) as they no longer have the LPD role.",
-                &data.user, &data.user.name, &data.user.id
+                &user, &user.name, &user.id
             );
         }
         _ => {}

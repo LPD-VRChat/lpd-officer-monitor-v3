@@ -9,10 +9,8 @@ edition = "2021"
 members = [".", "entity", "migration"]
 
 [dependencies]
-# serenity = "0.10"
-# poise = "0.0.0"
-serenity = { git = "https://github.com/serenity-rs/serenity" }
-poise = { git = "https://github.com/kangalioo/poise", branch = "develop" }
+# serenity = { git = "https://github.com/serenity-rs/serenity" }
+# poise = { git = "https://github.com/kangalioo/poise", branch = "develop" }
 
 entity = { path = "entity" }
 migration = { path = "migration" }
@@ -29,3 +27,11 @@ serde = { version = "1.0", features = ["derive"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 
 lazy_static = "1.4"
+
+[dependencies.serenity]
+version = "0.11"
+default-features = false 
+features = ["builder", "cache", "chrono", "client", "gateway", "model", "http", "rustls_backend", "utils"]
+
+[dependencies.poise]
+version = "0.1"

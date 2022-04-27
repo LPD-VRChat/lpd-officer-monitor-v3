@@ -408,20 +408,20 @@ fn get_channel_name(ctx: &serenity::Context, channel_id: serenity::ChannelId) ->
 
 pub async fn event_listener(
     ctx: &serenity::Context,
-    event: &serenity::Event,
+    event: &poise::Event<'_>,
     _framework: &poise::Framework<Data, Error>,
     user_data: &Data,
 ) -> Result<(), Error> {
     match event {
-        serenity::Event::Ready(_data) => {
+        poise::Event::Ready { data_about_bot: _ } => {
             // TODO: Add people that are on patrol when the bot starts
             println!("Patrol Measurement Ready!")
         }
-        serenity::Event::VoiceStateUpdate(data) => match data.voice_state.guild_id {
+        poise::Event::VoiceStateUpdate { old: _, new } => match new.guild_id {
             // Measure patrol time in the main LPD server
             Some(guild_id) if guild_id.0 == CONFIG.guild_id => {
                 // Ready variables to simplify the code
-                let user_id = data.voice_state.user_id;
+                let user_id = new.user_id;
                 let user_name = ctx
                     .cache
                     .member_field(CONFIG.guild_id, user_id, |u| u.user.name.clone())
@@ -429,7 +429,7 @@ pub async fn event_listener(
                 let patrol_cache = &user_data.patrol_cache;
                 let on_patrol = is_on_patrol(patrol_cache, user_id).await?;
 
-                match data.voice_state.channel_id {
+                match new.channel_id {
                     Some(channel_id) if is_monitored_cat(ctx, channel_id).await? => match on_patrol
                     {
                         // An officer is going on duty

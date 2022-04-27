@@ -5,6 +5,7 @@ mod db;
 mod global;
 
 use crate::global::{Context, Data, Error};
+use poise;
 use poise::serenity_prelude as serenity;
 
 use std::boxed::Box;
@@ -41,15 +42,17 @@ You can edit your message to the bot and the bot will edit its response.",
 
 async fn event_listener(
     ctx: &serenity::Context,
-    event: &serenity::Event,
+    event: &poise::Event<'_>,
     framework: &poise::Framework<Data, Error>,
     user_data: &Data,
 ) -> Result<(), Error> {
     business::member_management::event_listener(ctx, event, framework, user_data).await?;
     business::patrol_measure::event_listener(ctx, event, framework, user_data).await?;
-
-    if let serenity::Event::Ready(data_about_bot) = event {
-        println!("{} is connected!", data_about_bot.ready.user.name);
+    match event.to_owned() {
+        poise::Event::Ready { data_about_bot } => {
+            println!("{} is connected!", data_about_bot.user.name)
+        }
+        _ => (),
     }
 
     Ok(())
@@ -101,14 +104,12 @@ async fn main() {
             },
             ..Default::default()
         })
-        .client_settings(|b| {
-            b.intents(
-                serenity::GatewayIntents::non_privileged()
-                    | serenity::GatewayIntents::MESSAGE_CONTENT
-                    | serenity::GatewayIntents::GUILD_MEMBERS
-                    | serenity::GatewayIntents::GUILD_PRESENCES,
-            )
-        })
+        .intents(
+            serenity::GatewayIntents::non_privileged()
+                | serenity::GatewayIntents::MESSAGE_CONTENT
+                | serenity::GatewayIntents::GUILD_MEMBERS
+                | serenity::GatewayIntents::GUILD_PRESENCES,
+        )
         .run()
         .await
         .unwrap();
