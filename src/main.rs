@@ -35,9 +35,7 @@ Type ?help command for more info on a command.
 You can edit your message to the bot and the bot will edit its response.",
         ..Default::default()
     };
-    poise::builtins::help(ctx, command.as_deref(), config)
-        .await
-        .map_err(Box::from)
+    poise::builtins::help(ctx, command.as_deref(), config).await.map_err(Box::from)
 }
 
 async fn event_listener(

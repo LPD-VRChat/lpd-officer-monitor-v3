@@ -114,10 +114,8 @@ pub async fn patrol_time(
         }
     };
 
-    let message = format!(
-        "On duty time for {} - from {} to {}:\n{}",
-        officer, from_date, to_date, time_str
-    );
+    let message =
+        format!("On duty time for {} - from {} to {}:\n{}", officer, from_date, to_date, time_str);
     send_long(ctx, &message).await?;
 
     Ok(())

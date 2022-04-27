@@ -11,8 +11,7 @@ pub async fn rtv(
     let role = match bs::get_role_by_decorated_name(&ctx.discord().cache, &role_name).await {
         Some(role) => role,
         None => {
-            ctx.say(format!("Couldn't find role `{}`", role_name))
-                .await?;
+            ctx.say(format!("Couldn't find role `{}`", role_name)).await?;
             return Ok(());
         }
     };
@@ -27,10 +26,7 @@ pub async fn rtv(
         .collect::<Vec<_>>()
         .join("\n");
 
-    ctx.say(format!(
-        "Everyone in the role `{role_name}`:\n```\n{output}\n```"
-    ))
-    .await?;
+    ctx.say(format!("Everyone in the role `{role_name}`:\n```\n{output}\n```")).await?;
 
     Ok(())
 }

@@ -151,10 +151,7 @@ pub async fn event_listener(
     user_data: &Data,
 ) -> Result<(), Error> {
     match event {
-        poise::Event::GuildMemberUpdate {
-            old_if_available: _,
-            new,
-        } => {
+        poise::Event::GuildMemberUpdate { old_if_available: _, new } => {
             let member = get_member_from_cache(&user_data.officer_cache, &new.user.id).await;
             let in_cache_and_lpd = match member {
                 Some(ref m) => m.deleted_at.is_none(),
@@ -184,11 +181,7 @@ pub async fn event_listener(
                 );
             };
         }
-        poise::Event::GuildMemberRemoval {
-            guild_id: _,
-            user,
-            member_data_if_available: _,
-        } => {
+        poise::Event::GuildMemberRemoval { guild_id: _, user, member_data_if_available: _ } => {
             remove_member(&user_data.officer_cache, &user.id)
                 .await
                 .expect("Failed removing member on server leave.");

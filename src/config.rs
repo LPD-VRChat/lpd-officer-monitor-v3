@@ -48,15 +48,13 @@ pub fn get_config(file: &str, include_local: bool) -> Config {
     let parent_path = get_parent_folder(file);
 
     // Get the config
-    let mut figment = Figment::new()
-        .merge(Toml::file(parent_path.clone() + "base.toml"))
-        .merge(Toml::file(file));
+    let mut figment =
+        Figment::new().merge(Toml::file(parent_path.clone() + "base.toml")).merge(Toml::file(file));
 
     // Only include local config if it is supposed to (don't want it messing with unit testing)
     if include_local {
-        figment = figment
-            .merge(Toml::file(parent_path + "local.toml"))
-            .merge(Env::prefixed("LOM_"));
+        figment =
+            figment.merge(Toml::file(parent_path + "local.toml")).merge(Env::prefixed("LOM_"));
     }
 
     // Return the resulting config objects

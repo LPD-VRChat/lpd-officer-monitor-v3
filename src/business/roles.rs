@@ -39,10 +39,7 @@ pub async fn get_role_members(
             let has_role = match m {
                 Ok(member) => member.roles.contains(role_id),
                 Err(err) => {
-                    println!(
-                        "get_role_members: members_iter.filter got an error: {:?}",
-                        err
-                    );
+                    println!("get_role_members: members_iter.filter got an error: {:?}", err);
                     false
                 }
             };

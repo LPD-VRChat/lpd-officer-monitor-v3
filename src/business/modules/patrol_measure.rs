@@ -140,9 +140,9 @@ pub async fn get_patrol_time(
     user_id: serenity::UserId,
 ) -> Result<i64, Error> {
     let patrols = get_patrols(from, to, user_id).await?;
-    let patrol_time = patrols.iter().fold(0, |acc, item| {
-        acc + item.0.end.signed_duration_since(item.0.start).num_seconds()
-    });
+    let patrol_time = patrols
+        .iter()
+        .fold(0, |acc, item| acc + item.0.end.signed_duration_since(item.0.start).num_seconds());
     Ok(patrol_time)
 }
 
@@ -290,9 +290,7 @@ async fn go_off_duty(
 
         // Save the patrol_voices
         futures::future::try_join_all(
-            patrol_voice_models
-                .into_iter()
-                .map(|model| model.save(&conn)),
+            patrol_voice_models.into_iter().map(|model| model.save(&conn)),
         )
         .await?;
     }
@@ -329,19 +327,11 @@ async fn move_on_duty_vc(
     ))?;
 
     // End the last VC time
-    patrol_log
-        .voice_log
-        .last_mut()
-        .ok_or_else(|| Error::from(no_voice_log_err(user_id)))?
-        .end = Some(now);
+    patrol_log.voice_log.last_mut().ok_or_else(|| Error::from(no_voice_log_err(user_id)))?.end =
+        Some(now);
 
     // Start the new VC time
-    patrol_log.voice_log.push(ChannelLog {
-        guild_id,
-        channel_id,
-        start: now,
-        end: None,
-    });
+    patrol_log.voice_log.push(ChannelLog { guild_id, channel_id, start: now, end: None });
 
     Ok(())
 }
@@ -357,21 +347,13 @@ fn is_ignored_channel(channel_id: serenity::ChannelId) -> bool {
 fn is_monitored(channel_id: serenity::ChannelId, category_id: Option<serenity::ChannelId>) -> bool {
     // Check if the category exists and is monitored
     if let Some(category_id) = category_id {
-        if CONFIG
-            .patrol_time
-            .monitored_categories
-            .contains(&category_id.0)
-        {
+        if CONFIG.patrol_time.monitored_categories.contains(&category_id.0) {
             return !is_ignored_channel(channel_id);
         }
     }
 
     // If that hasn't returned true, check if the channel is monitored
-    if CONFIG
-        .patrol_time
-        .monitored_channels
-        .contains(&channel_id.0)
-    {
+    if CONFIG.patrol_time.monitored_channels.contains(&channel_id.0) {
         return !is_ignored_channel(channel_id);
     }
 
@@ -383,10 +365,7 @@ async fn is_monitored_cat(
     ctx: &serenity::Context,
     channel_id: serenity::ChannelId,
 ) -> Result<bool, Error> {
-    Ok(is_monitored(
-        channel_id,
-        get_category_id(ctx, channel_id).await?,
-    ))
+    Ok(is_monitored(channel_id, get_category_id(ctx, channel_id).await?))
 }
 
 async fn get_category_id(
