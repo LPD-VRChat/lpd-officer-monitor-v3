@@ -12,8 +12,16 @@ pub struct Model {
     pub event_id: Option<i32>,
 }
 
+impl Related<super::patrol_voice::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PatrolVoiceComms.def()
+    }
+}
+
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::patrol_voice::Entity")]
+    PatrolVoiceComms,
     #[sea_orm(
         belongs_to = "super::saved_voice_channel::Entity",
         from = "Column::MainChannelId",

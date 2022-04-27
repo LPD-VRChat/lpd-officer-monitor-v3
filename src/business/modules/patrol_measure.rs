@@ -1,9 +1,15 @@
 use entity::patrol;
+use entity::patrol_voice;
 use entity::saved_voice_channel;
 
+use entity::sea_orm;
 use entity::sea_orm::ColumnTrait;
 use entity::sea_orm::EntityTrait;
+use entity::sea_orm::JoinType;
+use entity::sea_orm::OrderedStatement;
 use entity::sea_orm::QueryFilter;
+use entity::sea_orm::QuerySelect;
+use entity::sea_orm::RelationTrait;
 
 use crate::config::CONFIG;
 use crate::db;
@@ -114,14 +120,18 @@ pub async fn get_patrols(
     from: chrono::NaiveDateTime,
     to: chrono::NaiveDateTime,
     user_id: serenity::UserId,
-) -> Result<Vec<patrol::Model>, Error> {
+) -> Result<Vec<(patrol::Model, Vec<patrol_voice::Model>)>, Error> {
     let conn = db::establish_connection().await;
-    Ok(patrol::Entity::find()
+    // let conn = sea_orm::MockDatabase::new(sea_orm::DbBackend::MySql).into_connection();
+    let result = patrol::Entity::find()
+        .find_with_related(patrol_voice::Entity)
         .filter(patrol::Column::Start.gt(from))
         .filter(patrol::Column::End.lt(to))
         .filter(patrol::Column::OfficerId.eq(user_id.0))
         .all(&conn)
-        .await?)
+        .await;
+    // println!("Query: {:?}", conn.into_transaction_log());
+    Ok(result?)
 }
 
 pub async fn get_patrol_time(
@@ -131,7 +141,7 @@ pub async fn get_patrol_time(
 ) -> Result<i64, Error> {
     let patrols = get_patrols(from, to, user_id).await?;
     let patrol_time = patrols.iter().fold(0, |acc, item| {
-        acc + item.end.signed_duration_since(item.start).num_seconds()
+        acc + item.0.end.signed_duration_since(item.0.start).num_seconds()
     });
     Ok(patrol_time)
 }
@@ -208,6 +218,25 @@ async fn go_on_duty(
     }
 }
 
+async fn create_patrol_voice(
+    patrol_id: i32,
+    patrol_voice: &ChannelLog,
+) -> Result<patrol_voice::ActiveModel, Error> {
+    let channel = get_saved_voice_channel(CONFIG.guild_id.into(), patrol_voice.channel_id).await?;
+    let end = match patrol_voice.end {
+        Some(val) => val,
+        None => chrono::Utc::now().naive_utc(),
+    };
+    use entity::sea_orm::entity::*;
+    Ok(patrol_voice::ActiveModel {
+        patrol_id: Set(patrol_id),
+        channel_id: Set(channel.id),
+        start: Set(patrol_voice.start),
+        end: Set(end),
+        ..Default::default()
+    })
+}
+
 /// Register a user going off duty
 async fn go_off_duty(
     patrol_cache: &PatrolCache,
@@ -234,7 +263,6 @@ async fn go_off_duty(
             get_saved_voice_channel(CONFIG.guild_id.into(), main_channel_discord_id).await?;
 
         // Create the models for the data
-        // TODO: Save each voice log individually
         use entity::sea_orm::entity::*;
         let model = patrol::ActiveModel {
             officer_id: Set(user_id.0),
@@ -251,7 +279,22 @@ async fn go_off_duty(
 
         // Save the data to the database
         let conn = db::establish_connection().await;
-        model.save(&conn).await?;
+        let saved_model = model.save(&conn).await?;
+
+        // Create the patrol_voice models
+        let patrol_id = saved_model.id.as_ref().to_owned();
+        let create_pat_vc =
+            |ch_log| Box::pin(async move { create_patrol_voice(patrol_id, ch_log).await });
+        let pat_vc_futures = patrol_log.voice_log.iter().map(create_pat_vc);
+        let patrol_voice_models = futures::future::try_join_all(pat_vc_futures).await?;
+
+        // Save the patrol_voices
+        futures::future::try_join_all(
+            patrol_voice_models
+                .into_iter()
+                .map(|model| model.save(&conn)),
+        )
+        .await?;
     }
 
     // Remove the patrol from the cache

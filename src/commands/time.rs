@@ -11,13 +11,22 @@ fn date_from_days(days: i64) -> Result<chrono::NaiveDate, Error> {
         .date())
 }
 
-#[rustfmt::skip]
-fn display_duration(seconds: i64) -> String {
+/// Convert seconds into weeks, days, hours, minutes and seconds
+fn split_duration(seconds: i64) -> (i64, i64, i64, i64, i64) {
     // Calculate each duration
-    let (min_rem, seconds) = (seconds/60, seconds % 60);
-    let (hour_rem, minutes) = (min_rem/60, min_rem % 60);
-    let (day_rem, hours) = (hour_rem/60, hour_rem % 60);
-    let (weeks, days) = (day_rem/60, day_rem % 60);
+    let (min_rem, seconds) = (seconds / 60, seconds % 60);
+    let (hour_rem, minutes) = (min_rem / 60, min_rem % 60);
+    let (day_rem, hours) = (hour_rem / 60, hour_rem % 60);
+    let (weeks, days) = (day_rem / 60, day_rem % 60);
+
+    // Return the values
+    (weeks, days, hours, minutes, seconds)
+}
+
+/// Make a multi line string that represents a duration
+#[rustfmt::skip]
+fn display_duration_multiline(seconds: i64) -> String {
+    let (weeks, days, hours, minutes, seconds) = split_duration(seconds);
 
     // Convert the duration into a string
     let mut return_str = "".to_owned();
@@ -26,6 +35,14 @@ fn display_duration(seconds: i64) -> String {
     if return_str.len() != 0 || hours != 0 { return_str += &format!("Hours: {}\n", hours) }
     if return_str.len() != 0 || minutes != 0 { return_str += &format!("Minutes: {}\n", minutes) }
     return_str + &format!("Seconds: {}", seconds)
+}
+
+/// Make a single line string that represents a duration
+fn display_duration(seconds: i64) -> String {
+    let (weeks, days, hours, minutes, seconds) = split_duration(seconds);
+
+    // Convert the duration into a single line string
+    format!("{}:{}:{}:{}:{}", weeks, days, hours, minutes, seconds)
 }
 
 /// Check patrol time of an officer.
@@ -56,13 +73,35 @@ pub async fn patrol_time(
 
     let time_str = match list_patrols {
         true => {
-            let _patrols = bs::patrol_measure::get_patrols(
+            let patrols = bs::patrol_measure::get_patrols(
                 from_date.and_hms(0, 0, 0),
                 to_date.and_hms(23, 59, 59),
                 officer.id,
             )
             .await?;
-            todo!()
+            let result = patrols.into_iter().fold(String::new(), |acc, item| {
+                // Get the duration for this patrol
+                let patrol_duration =
+                    display_duration(item.0.end.signed_duration_since(item.0.start).num_seconds());
+
+                // Combine the patrol_voice objects
+                let patrol_voices = item.1.into_iter().fold(String::new(), |acc, pat_vc| {
+                    let pat_dur_sec = pat_vc.end.signed_duration_since(pat_vc.start).num_seconds();
+                    let pat_vc_dur = display_duration(pat_dur_sec);
+                    format!("{}    {} - {}\n", acc, pat_vc.start.to_string(), pat_vc_dur)
+                });
+
+                // Combine the data for this patrol, including the patrol_voice objects
+                format!(
+                    "{}{} - {}\n{}\n",
+                    acc,
+                    item.0.start.to_string(),
+                    patrol_duration.to_string(),
+                    &patrol_voices[0..patrol_voices.len().checked_sub(1).unwrap_or(0)]
+                )
+            });
+            let cutoff_result = &result[0..result.len().checked_sub(1).unwrap_or(0)];
+            format!("```\n{}```", cutoff_result)
         }
         false => {
             let patrol_time = bs::patrol_measure::get_patrol_time(
@@ -71,7 +110,7 @@ pub async fn patrol_time(
                 officer.id,
             )
             .await?;
-            display_duration(patrol_time)
+            display_duration_multiline(patrol_time)
         }
     };
 
