@@ -38,7 +38,7 @@ pub struct Config {
 /// Calculate the parent folder path with a slash at the end.
 /// Returns an empty string if the path sent in doesn't include any folder and is just a file.
 fn get_parent_folder(file: &str) -> String {
-    match file.rfind("/") {
+    match file.rfind('/') {
         Some(location) => file.split_at(location).0.to_owned() + "/",
         None => "".to_owned(),
     }

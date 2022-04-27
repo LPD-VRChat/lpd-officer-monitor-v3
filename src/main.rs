@@ -45,11 +45,9 @@ async fn event_listener(
 ) -> Result<(), Error> {
     business::member_management::event_listener(ctx, event, framework, user_data).await?;
     business::patrol_measure::event_listener(ctx, event, framework, user_data).await?;
-    match event.to_owned() {
-        poise::Event::Ready { data_about_bot } => {
-            println!("{} is connected!", data_about_bot.user.name)
-        }
-        _ => (),
+
+    if let poise::Event::Ready { data_about_bot } = event {
+        println!("{} is connected!", data_about_bot.user.name);
     }
 
     Ok(())

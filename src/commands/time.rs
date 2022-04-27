@@ -30,10 +30,10 @@ fn display_duration_multiline(seconds: i64) -> String {
 
     // Convert the duration into a string
     let mut return_str = "".to_owned();
-    if return_str.len() != 0 || weeks != 0 { return_str += &format!("Weeks: {}\n", weeks) }
-    if return_str.len() != 0 || days != 0 { return_str += &format!("Days: {}\n", days) }
-    if return_str.len() != 0 || hours != 0 { return_str += &format!("Hours: {}\n", hours) }
-    if return_str.len() != 0 || minutes != 0 { return_str += &format!("Minutes: {}\n", minutes) }
+    if !return_str.is_empty() || weeks != 0 { return_str += &format!("Weeks: {}\n", weeks) }
+    if !return_str.is_empty() || days != 0 { return_str += &format!("Days: {}\n", days) }
+    if !return_str.is_empty() || hours != 0 { return_str += &format!("Hours: {}\n", hours) }
+    if !return_str.is_empty() || minutes != 0 { return_str += &format!("Minutes: {}\n", minutes) }
     return_str + &format!("Seconds: {}", seconds)
 }
 
@@ -88,20 +88,19 @@ pub async fn patrol_time(
                 let patrol_voices = item.1.into_iter().fold(String::new(), |acc, pat_vc| {
                     let pat_dur_sec = pat_vc.end.signed_duration_since(pat_vc.start).num_seconds();
                     let pat_vc_dur = display_duration(pat_dur_sec);
-                    format!("{}    {} - {}\n", acc, pat_vc.start.to_string(), pat_vc_dur)
+                    format!("{}    {} - {}\n", acc, pat_vc.start, pat_vc_dur)
                 });
 
                 // Combine the data for this patrol, including the patrol_voice objects
                 format!(
                     "{}{} - {}\n{}\n",
                     acc,
-                    item.0.start.to_string(),
-                    patrol_duration.to_string(),
-                    &patrol_voices[0..patrol_voices.len().checked_sub(1).unwrap_or(0)]
+                    item.0.start,
+                    patrol_duration,
+                    &patrol_voices[0..patrol_voices.len().saturating_sub(1)]
                 )
             });
-            let cutoff_result = &result[0..result.len().checked_sub(1).unwrap_or(0)];
-            format!("```\n{}```", cutoff_result)
+            format!("```\n{}```", &result[0..result.len().saturating_sub(1)])
         }
         false => {
             let patrol_time = bs::patrol_measure::get_patrol_time(
