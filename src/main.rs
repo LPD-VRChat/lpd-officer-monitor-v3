@@ -5,7 +5,6 @@ mod db;
 mod global;
 
 use crate::global::{Context, Data, Error};
-use poise;
 use poise::serenity_prelude as serenity;
 
 use std::boxed::Box;

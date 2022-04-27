@@ -2,14 +2,9 @@ use entity::patrol;
 use entity::patrol_voice;
 use entity::saved_voice_channel;
 
-use entity::sea_orm;
 use entity::sea_orm::ColumnTrait;
 use entity::sea_orm::EntityTrait;
-use entity::sea_orm::JoinType;
-use entity::sea_orm::OrderedStatement;
 use entity::sea_orm::QueryFilter;
-use entity::sea_orm::QuerySelect;
-use entity::sea_orm::RelationTrait;
 
 use crate::config::CONFIG;
 use crate::db;
